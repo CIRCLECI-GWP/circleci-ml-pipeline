@@ -1,0 +1,4 @@
+1
+The first line of this file should be an integer representing the model version
+In a real-world scenario you would manage this number and update it when your model is updated
+Nothing else should occupy that line, and nothing else in this file will be read
