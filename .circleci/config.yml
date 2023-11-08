@@ -1,5 +1,14 @@
 version: 2.1
 
+executors:
+  # For running on CircleCI's self-hosted runners
+  runner:
+    machine: true
+    resource_class: RUNNER_NAMESPACE/RUNNER_RESOURCE_CLASS # Update this to reflect your self-hosted runner resource class details
+    # For running on CircleCI's compute resources you would replace the above with the following for all jobs:
+    # docker:
+    #   - image: cimg/python:3.11.4
+
 # Define custom commands for this config
 # See https://circleci.com/docs/reusing-config/#authoring-reusable-commands
 commands:
@@ -33,18 +42,20 @@ commands:
 # See: https://circleci.com/docs/jobs-steps/
 jobs:
   install-build:
-    # For running on CircleCI's self-hosted runners
-    machine: true
-    resource_class: RUNNER_NAMESPACE/RUNNER_RESOURCE_CLASS # Update this to reflect your self-hosted runner resource class details
-    # For running on CircleCI's compute resources you would replace the above with the following for all jobs:
-    # docker:
-    #   - image: cimg/python:3.11.4
+    executor: runner
     steps:
       - checkout # Check out the code in the project directory
       - check-python # Invoke command "check-python"
       - create-env     
+      - run:
+          # command: | can be used to in a CircleCI config file to run multiple lines of code in a single command
+          command: |
+            echo "Checking current user $USER is able to run docker commands"
+            # Users need to be apart of the docker group to run docker commands with out sudo, try running `usermod -aG docker circleci` to add the current user to the group
+            docker ps 
+          name: Verify current user can use docker
       - run: 
-          command: source ./tools/install.sh
+          command: bash ./tools/install.sh
           name: Run script to install dependencies
       - run:
           command: source ./venv/bin/activate && python3 ./ml/1_build.py # Activate the Python virtual environment before running Python scripts
@@ -60,9 +71,7 @@ jobs:
             - .env # Persist the .env file containing secrets
             - tools # Persist the tools directory
   train:
-    # For running on CircleCI's self-hosted runners - details taken from environment variables
-    machine: true
-    resource_class: RUNNER_NAMESPACE/RUNNER_RESOURCE_CLASS # Update this to reflect your self-hosted runner resource class details
+    executor: runner
     steps: # Steps in jobs are run sequentially
       - attach_workspace:
           # Must be absolute path or relative path from working_directory
@@ -76,9 +85,7 @@ jobs:
           paths:
             - ml # Only files in the ml directory have changed and need to be persisted back to the workspace
   test:
-    # For running on CircleCI's self-hosted runners - details taken from environment variables
-    machine: true
-    resource_class: RUNNER_NAMESPACE/RUNNER_RESOURCE_CLASS # Update this to reflect your self-hosted runner resource class details
+    executor: runner
     steps: # Steps in jobs are run sequentially
       - attach_workspace:
           at: .
@@ -86,9 +93,7 @@ jobs:
           command: source ./venv/bin/activate && python3 ./ml/3_test.py
           name: Test the model
   retrain:
-    # For running on CircleCI's self-hosted runners - details taken from environment variables
-    machine: true
-    resource_class: RUNNER_NAMESPACE/RUNNER_RESOURCE_CLASS # Update this to reflect your self-hosted runner resource class details
+    executor: runner
 
     steps:
       - attach_workspace:
@@ -107,9 +112,7 @@ jobs:
           paths:
             - ml # Only files in the ml directory have changed and need to be persisted back to the workspace
   package:
-    # For running on CircleCI's self-hosted runners - details taken from environment variables
-    machine: true
-    resource_class: RUNNER_NAMESPACE/RUNNER_RESOURCE_CLASS # Update this to reflect your self-hosted runner resource class details
+    executor: runner
 
     steps:
       - attach_workspace:
@@ -118,20 +121,22 @@ jobs:
           command: source ./venv/bin/activate && python3 ./ml/4_package.py
           name: Package the model  
   deploy:
-    # For running on CircleCI's self-hosted runners - details taken from environment variables
-    machine: true
-    resource_class: RUNNER_NAMESPACE/RUNNER_RESOURCE_CLASS # Update this to reflect your self-hosted runner resource class details
+    executor: runner
 
     steps:
       - attach_workspace:
           at: .
       - run:
+          command: |
+            # '\' can be used to continue a long command onto the next line to improve readability
+            docker ps -a | grep "tensorflow_serving" || \
+              docker create --name tensorflow_serving -p 8501:8501 -v /var/models/prod:/models/my_model -e MODEL_NAME=my_model tensorflow/serving
+          name: Ensure server container exists
+      - run:
           command: source ./venv/bin/activate && python3 ./ml/5_deploy.py
           name: Deploy the model
   test-deployment:
-    # For running on CircleCI's self-hosted runners - details taken from environment variables
-    machine: true
-    resource_class: RUNNER_NAMESPACE/RUNNER_RESOURCE_CLASS # Update this to reflect your self-hosted runner resource class details
+    executor: runner
     steps:
       - attach_workspace:
           at: .
@@ -146,11 +151,7 @@ workflows:
   # This workflow does a full build from scratch and deploys the model
   build-deploy:
     jobs:
-      - install-build:
-          filters:
-            branches:
-              only:
-                - main # Only run the job when the main branch is updated
+      - install-build
       - train:
           requires: # Only run the job when the preceding step in the ML process has been completed so that they are run sequentially
             - install-build

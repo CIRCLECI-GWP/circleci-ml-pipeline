@@ -161,7 +161,7 @@ You must set the following[ environment variables](https://circleci.com/docs/env
 
 ### Self-hosted runner details
 
-You will need to update the included CircleCI configuration to replace `RUNNER_NAMESPACE/RUNNER_RESOURCE_CLASS` with the details of your own runners.
+You will need to update the included CircleCI configuration to replace `RUNNER_NAMESPACE/RUNNER_RESOURCE_CLASS` with the details of your own runners. The [CircleCI documentation](https://circleci.com/docs/runner-overview/) explains how to install a self-hosted running on many platforms.
 
 ### Using CircleCI
 

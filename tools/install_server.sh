@@ -1,5 +1,6 @@
-
-#!/bin/bash
+#!/usr/bin/env bash
+# If any of the steps (not in a block construction) fail, the whole script should halt in place and the script will exit with the failure message of the failed step.
+set -eu -o pipefail
 
 #Commands to spin up a quick TensorFlow Serving server for use with this example
 
@@ -16,7 +17,8 @@ sudo chmod -R 775 /var/models
 # docker rm -f tensorflow_serving 
 
 # Create a TensorFlow Serving container with the directories configured for use with this example
-docker run --name tensorflow_serving -p 8501:8501 --mount type=bind,source=/var/models/prod,target=/models/my_model -e MODEL_NAME=my_model tensorflow/serving -d
+# Ensure any previous container is removed first to avoid conflicts and startup errors
+docker run -d -rm --name tensorflow_serving -p 8501:8501 -v /var/models/prod:/models/my_model -e MODEL_NAME=my_model tensorflow/serving
 
 # Until you publish your model to TensorFlow Serving, you will receive this message: Did you forget to name your leaf directory as a number (eg. '/1/')?
 # If you see this message in the Docker output, it means that the container is running successfully
