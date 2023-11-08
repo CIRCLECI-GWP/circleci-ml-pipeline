@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# If any of the steps (not in a block construction) fail, the whole script should halt in place and the script will exit with the failure message of the failed step.
+set -eu -o pipefail
 
 # Runs the build workflow steps for testing purposes
 
